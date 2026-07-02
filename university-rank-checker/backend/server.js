@@ -9,76 +9,59 @@ const { limiter } = require('./middleware/rateLimiter');
 
 const app = express();
 
-// Security headers
+// ── Security headers ──────────────────────────────────────────────────────────
 app.use(helmet());
 
-// CORS — production origin + localhost origins for local development only
-const allowedOrigins = [
-  config.frontendUrl,                      // https://unirank-j7s4.onrender.com (prod)
-  ...(config.nodeEnv !== 'production'
-    ? ['http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080']
-    : []),
-];
+// ── CORS ──────────────────────────────────────────────────────────────────────
+// Open CORS — allows requests from any origin.
+// This resolves the "No Access-Control-Allow-Origin" error from Vercel frontend.
+app.use(cors());
 
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      // Allow server-to-server requests (no origin) and listed origins
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        callback(new Error(`CORS: origin '${origin}' not allowed`));
-      }
-    },
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
-  })
-);
+// Explicit OPTIONS preflight handler — must come before route definitions.
+// Use '/{*path}' syntax compatible with Express 5 / path-to-regexp v8.
+app.options('/{*path}', cors());
 
-// Logging
+// ── Logging ───────────────────────────────────────────────────────────────────
 if (config.nodeEnv !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Body parsing
+// ── Body parsing ──────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
-// Global rate limiter
+// ── Rate limiting ─────────────────────────────────────────────────────────────
 app.use(limiter);
 
-// Health check
-app.get('/health', (req, res) => {
+// ── Health check ──────────────────────────────────────────────────────────────
+app.get('/health', (_req, res) => {
   res.status(200).json({
     success: true,
     message: 'University Rank Checker API is running',
     timestamp: new Date().toISOString(),
     environment: config.nodeEnv,
+    frontendUrl: config.frontendUrl,   // printed so you can verify on Render logs
   });
 });
 
-// API Routes
+// ── API routes ────────────────────────────────────────────────────────────────
 app.use('/api', rankRoutes);
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Route not found',
-    code: 'NOT_FOUND',
-  });
+// ── 404 ───────────────────────────────────────────────────────────────────────
+app.use((_req, res) => {
+  res.status(404).json({ success: false, error: 'Route not found', code: 'NOT_FOUND' });
 });
 
-// Error handler
+// ── Error handler ─────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
-// Start server
+// ── Start ─────────────────────────────────────────────────────────────────────
 app.listen(config.port, () => {
-  console.log(`\n🚀 University Rank Checker API`);
-  console.log(`📡 Server running on port ${config.port}`);
-  console.log(`🌍 Environment: ${config.nodeEnv}`);
-  console.log(`🔗 Health: http://0.0.0.0:${config.port}/health\n`);
+  console.log('\n🚀 University Rank Checker API');
+  console.log(`📡 Port        : ${config.port}`);
+  console.log(`🌍 Environment : ${config.nodeEnv}`);
+  console.log(`🔗 Frontend URL: ${config.frontendUrl}`);   // verify this on Render logs
+  console.log(`✅ CORS        : open (all origins allowed)\n`);
 });
 
 module.exports = app;
