@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: unirank-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: RANKING_API_URL
+        value: https://umz.vercel.app/api/ranking
+      - key: FRONTEND_URL
+        value: https://unirank-j7s4.onrender.com
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX
+        value: 100
